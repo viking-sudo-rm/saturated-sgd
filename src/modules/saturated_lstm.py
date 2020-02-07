@@ -68,11 +68,11 @@ class SaturatedLstm(Seq2SeqEncoder):
             output = self.output(inp, hid_state, self.saturated)
             c_twiddle = self.c_twiddle(inp, hid_state, self.saturated)
 
-            cell_state = mask * (include * inp + forget * c_twiddle)
-            hid_state = mask * (output * torch.tanh(cell_state))
+            cell_state = include * cell_state + forget * c_twiddle
+            hid_state = output * torch.tanh(cell_state)
             states.append(hid_state)
 
-        return torch.stack(states, dim=1)
+        return mask * torch.stack(states, dim=1)
 
     @overrides
     def get_input_dim(self):

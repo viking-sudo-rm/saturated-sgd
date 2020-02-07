@@ -7,18 +7,20 @@ import torch.nn.functional as F
 from allennlp.training.metrics.metric import Metric
 
 
-@Metric.register("l2")
-class L2Error(Metric):
+def _escape_norm(vectors):
+    norms = torch.norm(vectors, p=2, dim=-1)
+    ones = torch.ones_like(norms)
+    return torch.where(torch.isnan(norms), ones, norms)
 
-    """L2 metric adapted from AllenNLP implementation of L1 (mean absolute error).
-    
-    Set setting `normalize=True`, we can get a metric that resembles (ish) cosine distance.
-    """
 
-    def __init__(self, normalize: bool = False) -> None:
+@Metric.register("cos")
+class CosDistance(Metric):
+
+    """Cosine distance metric adapted from AllenNLP implementation of L1 (mean absolute error)."""
+
+    def __init__(self) -> None:
         self._absolute_error = 0.0
         self._total_count = 0.0
-        self._normalize = normalize
 
     def __call__(
         self,
@@ -26,14 +28,13 @@ class L2Error(Metric):
         gold_labels: torch.Tensor,
         mask: Optional[torch.Tensor] = None,
     ):
-        if self._normalize:
-            predictions = F.normalize(predictions, p=2, dim=-1)
-            gold_labels = F.normalize(gold_labels, p=2, dim=-1)
 
-        errors = predictions - gold_labels
-        distances = torch.sum(errors * errors, dim=-1)
+        distances = torch.sum(predictions * gold_labels, dim=-1)
         if mask is not None:
             distances *= mask
+        
+        distances /= _escape_norm(predictions)
+        distances /= _escape_norm(gold_labels)
 
         self._total_count += distances.numel()
         self._absolute_error += torch.sum(distances)

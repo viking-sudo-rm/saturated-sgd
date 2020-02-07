@@ -24,33 +24,23 @@ class SatMetricsTagger(SimpleTagger):
         vocab: Vocabulary,
         text_field_embedder: TextFieldEmbedder,
         encoder: Seq2SeqEncoder,
-        calculate_span_f1: bool = None,
-        label_encoding: Optional[str] = None,
-        label_namespace: str = "labels",
-        verbose_metrics: bool = False,
-        initializer: InitializerApplicator = InitializerApplicator(),
-        regularizer: Optional[RegularizerApplicator] = None,
+        **kwargs,
     ) -> None:
         super().__init__(
             vocab,
             text_field_embedder,
             encoder,
-            calculate_span_f1,
-            label_encoding,
-            label_namespace,
-            verbose_metrics,
-            initializer,
-            regularizer,
+            **kwargs
         )
 
         assert hasattr(encoder, "saturated")
         self.sat_metrics = {
-            "l1": MeanAbsoluteError(),
+            # "l1": MeanAbsoluteError(),
             "l2": L2Error(),
             "cos": L2Error(normalize=True),
         }
 
-    def forward(self, tokens, tags, metadata):
+    def forward(self, tokens, tags, metadata=None):
         self.encoder.saturated = False
 
         # Quick-and-dirty copied from SimpleTagger.
@@ -85,13 +75,13 @@ class SatMetricsTagger(SimpleTagger):
         sat_encodings = self.encoder(embedded_text_input, mask)
 
         for metric in self.sat_metrics.values():
-            metric(encoded_text, sat_encodings)
+            metric(encoded_text, sat_encodings, mask=mask)
 
         return output_dict
 
     @overrides
     def get_metrics(self, reset: bool = False):
-        metrics = super.get_metrics(reset=reset)
+        metrics = super().get_metrics(reset=reset)
         for name, metric in self.sat_metrics.items():
             metrics[name] = metric.get_metric(reset)
         return metrics

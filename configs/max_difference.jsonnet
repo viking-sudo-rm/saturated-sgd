@@ -4,7 +4,7 @@ local HIDDEN_SIZE = std.extVar("N_HID");
 # Task parameters.
 local NUM_TRAIN = 100000;
 local NUM_VALID = 10000;
-local LENGTH = 64;
+local LENGTH = 128;
 
 {
   "dataset_reader": {
@@ -12,8 +12,8 @@ local LENGTH = 64;
     "seed": 2,
   },
 
-  "train_data_path": "50000:128",
-  "validation_data_path": "5000:128",
+  "train_data_path": NUM_TRAIN + ":" + LENGTH,
+  "validation_data_path": NUM_VALID + ":" + LENGTH,
   
  "model": {
     "type": "sat_metrics_tagger",
@@ -46,6 +46,8 @@ local LENGTH = 64;
     "num_epochs": 100,
     "patience": 10,
     "cuda_device": 0,
-    "num_serialized_models_to_keep": 1
+    "checkpointer": {
+      "num_serialized_models_to_keep": 1,
+    },
   }
 }
