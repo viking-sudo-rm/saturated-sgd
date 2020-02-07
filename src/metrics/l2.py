@@ -34,6 +34,7 @@ class L2Error(Metric):
         distances = torch.sum(errors * errors, dim=-1)
         if mask is not None:
             distances *= mask
+        distances = torch.sqrt(distances)
 
         self._total_count += distances.numel()
         self._absolute_error += torch.sum(distances)
