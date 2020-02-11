@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Dict
 
 from overrides import overrides
 
@@ -9,7 +9,7 @@ from allennlp.modules import Seq2SeqEncoder, TextFieldEmbedder
 from allennlp.data.vocabulary import Vocabulary
 from allennlp.nn import InitializerApplicator, RegularizerApplicator
 from allennlp.nn.util import get_text_field_mask, sequence_cross_entropy_with_logits
-from allennlp.training.metrics.mean_absolute_error import MeanAbsoluteError
+from allennlp.training.metrics import Metric
 
 from src.metrics.l2 import L2Error
 
@@ -24,6 +24,9 @@ class SatMetricsTagger(SimpleTagger):
         vocab: Vocabulary,
         text_field_embedder: TextFieldEmbedder,
         encoder: Seq2SeqEncoder,
+        parameter_metrics: Dict[str, Metric] = {},
+        saturated_metrics: Dict[str, Metric] = {},
+        activation_metrics: Dict[str, Metric] = {},
         **kwargs,
     ) -> None:
         super().__init__(
@@ -33,15 +36,16 @@ class SatMetricsTagger(SimpleTagger):
             **kwargs
         )
 
-        assert hasattr(encoder, "saturated")
-        self.sat_metrics = {
-            # "l1": MeanAbsoluteError(),
-            "l2": L2Error(),
-            "cos": L2Error(normalize=True),
-        }
+        self.saturated_metrics = saturated_metrics
+        self.parameter_metrics = parameter_metrics
+        self.activation_metrics = activation_metrics
+
+        self.saturated = hasattr(self._contextualizer, "saturated")
 
     def forward(self, tokens, tags, metadata=None):
-        self.encoder.saturated = False
+
+        if self.saturated:
+            self.encoder.saturated = False
 
         # Quick-and-dirty copied from SimpleTagger.
 
@@ -71,17 +75,31 @@ class SatMetricsTagger(SimpleTagger):
 
         # === Here starts my part. ===
 
-        self.encoder.saturated = True
-        sat_encodings = self.encoder(embedded_text_input, mask)
-
-        for metric in self.sat_metrics.values():
-            metric(encoded_text, sat_encodings, mask=mask)
+        if self.saturated:
+            self.encoder.saturated = True
+            sat_encodings = self.encoder(embedded_text_input, mask)
+            for metric in self.saturated_metrics.values():
+                metric(encoded_text, sat_encodings, mask=mask)
+    
+        for metric_fn in self.parameter_metrics.values():
+            metric_fn(self.parameters())
+        
+        for metric_fn in self.activation_metrics.values():
+            metric_fn(encoded_text, mask=mask)
 
         return output_dict
 
-    @overrides
     def get_metrics(self, reset: bool = False):
         metrics = super().get_metrics(reset=reset)
-        for name, metric in self.sat_metrics.items():
-            metrics[name] = metric.get_metric(reset)
+
+        if self.saturated:
+            for name, metric in self.saturated_metrics.items():
+                metrics[name] = metric.get_metric(reset=reset)
+
+        for name, metric in self.parameter_metrics.items():
+            metrics[name] = metric.get_metric(reset=reset)
+        
+        for name, metric in self.activation_metrics.items():
+            metrics[name] = metric.get_metric(reset=reset)
+
         return metrics
