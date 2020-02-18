@@ -8,10 +8,9 @@
 #SBATCH --exclude=allennlp-server1,allennlp-server2,allennlp-server3
 
 source /home/willm/anaconda3/bin/activate allennlp
-conf=/home/willm/code/saturated-sgd/configs/agree.jsonnet
+conf=/home/willm/code/saturated-sgd/configs/prune-eval.jsonnet
 
-n_layers=2
-drop=0.0
+percent=0.2
 
-dir=/tmp/willm/saturated-sgd/agree/${n_layers}-drop-$drop
-N_LAYERS=$n_layers DROP=$drop allennlp train $conf -s $dir --include-package src
+dir=/tmp/willm/saturated-sgd/prune-eval/$percent
+PERCENT=$percent allennlp train $conf -s $dir --include-package src

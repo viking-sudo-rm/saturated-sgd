@@ -10,8 +10,9 @@
 source /home/willm/anaconda3/bin/activate allennlp
 conf=/home/willm/code/saturated-sgd/configs/lm.jsonnet
 
+optim=adamw
 c_drop=0.5 #0.5
 l2=1.2e-6 # 1.2e-6
 
-dir=/tmp/willm/saturated-sgd/lm/penn/${c_drop}-${l2}
-C_DROP=$c_drop L2=$l2 allennlp train $conf -s $dir --include-package src
+dir=/tmp/willm/saturated-sgd/lm/penn/${optim}-${c_drop}-${l2}
+OPTIM=$optim C_DROP=$c_drop L2=$l2 allennlp train $conf -s $dir --include-package src

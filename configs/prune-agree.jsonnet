@@ -1,13 +1,19 @@
+local bool(s) =
+  if s == "true" then true
+  else if s == "false" then false
+  else error "invalid boolean: " + std.manifestJson(s);
+
 # Model hyperparameters.
 local EMBEDDING_DIM = 100;
 local HIDDEN_DIM = 100;
-local NUM_LAYERS = std.extVar("N_LAYERS");
+local PRUNE_PERCENT = std.extVar("PERCENT");
+local STE = bool(std.extVar("STE"));
 
 # Optimization hyperparameters.
 local OPTIMIZER = "adamw";
 local BATCH_SIZE = 16;
 local PATIENCE = 10;
-local EMBED_DROPOUT = std.extVar("DROP");
+local EMBED_DROPOUT = 0.0;
 
 # Path to the data on the file system.
 local DATA_ROOT = "/net/nfs.corp/allennlp/willm/data";
@@ -51,11 +57,16 @@ local DATA_ROOT = "/net/nfs.corp/allennlp/willm/data";
     },
 
     "seq2seq_encoder": {
-      "type": "rnn",
-      "input_size": EMBEDDING_DIM,
-      "hidden_size": HIDDEN_DIM,
-      "bidirectional": false,
-      "num_layers": NUM_LAYERS,
+      "type": "percent_saturated_dropout",
+      "percent": PRUNE_PERCENT,
+      "ste": STE,
+      "encoder": {
+          "type": "rnn",
+          "input_size": EMBEDDING_DIM,
+          "hidden_size": HIDDEN_DIM,
+          "bidirectional": false,
+          "num_layers": 1,
+      },
     },
 
     "seq2vec_encoder": {

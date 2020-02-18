@@ -6,6 +6,7 @@ local HIDDEN_DIM = 1150;
 
 # Optimization hyperparameters.
 # Refer to https://github.com/viking-sudo-rm/bert-parsing/blob/master/configs/language-modeling/ptb.jsonnet
+local OPTIMIZER = std.extVar("OPTIM");
 local BATCH_SIZE = 20;  # 16;
 local PATIENCE = 5;
 local CHAR_DROPOUT = std.extVar("C_DROP");
@@ -46,6 +47,7 @@ local DATASET = "penn";
         "sat-.1": {"type": "num_saturated", "delta": 0.1},
         "sat-.01": {"type": "num_saturated", "delta": 0.01},
         "sat-dist": {"type": "sat_dist"},
+        "preact": {"type": "preactivation_abs"},
     },
 
     "parameter_metrics": {
@@ -107,7 +109,7 @@ local DATASET = "penn";
   },
   "trainer": {
     "optimizer": {
-      "type": "adam",
+      "type": OPTIMIZER,
       "weight_decay": WEIGHT_DECAY,
     },
     "num_epochs": 300,
