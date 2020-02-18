@@ -27,7 +27,7 @@ class PercentSaturatedDropoutTest(TestCase):
         exp_dropped = torch.tensor([[[0., 0., 2., 3., 4., 5., 6., 7., 8., 9.]]])
         torch.testing.assert_allclose(dropped, exp_dropped)
 
-    def test_saturated_dropout_negative(self):
+    def test_saturated_dropout_zero(self):
         encoder = PassThroughEncoder(input_dim=1)
         pruner = PercentSaturatedDropout(encoder, percent=0.)
         inputs = torch.arange(0, 10).unsqueeze(0).unsqueeze(0).float() + 1

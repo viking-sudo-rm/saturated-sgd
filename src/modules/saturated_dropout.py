@@ -11,7 +11,7 @@ def saturated_ste_dropout(
     `threshold` is the the norm value below which activations are dropped.
     """
     conditions = (mean_norms >= threshold).unsqueeze(0).unsqueeze(0)
-    zeros = (torch.zeros_like(activations) - activations).detach() + activations
+    zeros = (-activations).detach() + activations
     return torch.where(conditions, activations, zeros)
 
 
