@@ -3,6 +3,7 @@ local EMBEDDING_DIM = 400;  # 300;
 local CHAR_EMBEDDING_DIM = 50;
 local INPUT_DIM = EMBEDDING_DIM + CHAR_EMBEDDING_DIM;
 local HIDDEN_DIM = 1150;
+local NUM_LAYERS = 2;
 
 # Optimization hyperparameters.
 # Refer to https://github.com/viking-sudo-rm/bert-parsing/blob/master/configs/language-modeling/ptb.jsonnet
@@ -77,25 +78,15 @@ local DATASET = "penn";
     },
 
     "contextualizer": {
-      "type": "compose",
-      "encoders": [
-        {
-          "type": "lstm",
+      "type": "percent_saturated_dropout",
+      "percent": 0.0,
+      "norm": "gru",
+      "encoder": {
+          "type": "gru",
           "input_size": INPUT_DIM,
           "hidden_size": HIDDEN_DIM,
-          "bidirectional": false,
-        },
-        {
-          // We add this feedforward layer to get nicely squashed activations.
-          "type": "feedforward",
-          "feedforward": {
-            "input_dim": HIDDEN_DIM,
-            "num_layers": 1,
-            "hidden_dims": HIDDEN_DIM,
-            "activations": "tanh",
-          },
-        },
-      ],
+          "num_layers": NUM_LAYERS,
+      },
     },
 
     "dropout": EMBED_DROPOUT,
