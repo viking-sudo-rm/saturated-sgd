@@ -10,16 +10,24 @@
 source /home/willm/anaconda3/bin/activate allennlp
 conf=/home/willm/code/saturated-sgd/configs/prune-agree.jsonnet
 
-percent=0.0
-ste=false
+percent=0.5
+activations=true
 
-if [ "$ste" = "true" ]; then
-    dir=/tmp/willm/saturated-sgd/prune-agree/${percent}-ste
+if [ "$activations" = "true" ]; then
+    dir=/tmp/willm/saturated-sgd/prune-agree/new-${percent}-act
 else
-    dir=/tmp/willm/saturated-sgd/prune-agree/$percent
+    dir=/tmp/willm/saturated-sgd/prune-agree/new-${percent}
 fi
 
-PERCENT=$percent STE=$ste allennlp train $conf -s $dir --include-package src
+PERCENT=$percent ACTIVATIONS=$activations allennlp train $conf -s $dir --include-package=src
+
+# if [ "$ste" = "true" ]; then
+#     dir=/tmp/willm/saturated-sgd/prune-agree/${percent}-ste
+# else
+#     dir=/tmp/willm/saturated-sgd/prune-agree/$percent
+# fi
+
+# PERCENT=$percent STE=$ste allennlp train $conf -s $dir --include-package src
 
 # A baseline: just train with smaller number of activations.
 

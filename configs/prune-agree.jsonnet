@@ -1,13 +1,10 @@
-local bool(s) =
-  if s == "true" then true
-  else if s == "false" then false
-  else error "invalid boolean: " + std.manifestJson(s);
+local utils = import "utils.jsonnet";
 
 # Model hyperparameters.
 local EMBEDDING_DIM = 100;
 local HIDDEN_DIM = 100;
-local PRUNE_PERCENT = std.extVar("PERCENT");
-local STE = bool(std.extVar("STE"));
+local PRUNE_PERCENT = std.parseJson(std.extVar("PERCENT"));
+local USE_ACTIVATIONS = utils.bool(std.extVar("ACTIVATIONS"));
 
 # Optimization hyperparameters.
 local OPTIMIZER = "adamw";
@@ -57,16 +54,11 @@ local DATA_ROOT = "/net/nfs.corp/allennlp/willm/data";
     },
 
     "seq2seq_encoder": {
-      "type": "percent_saturated_dropout",
+      "type": "magnitude_prunable_rnn",
       "percent": PRUNE_PERCENT,
-      "ste": STE,
-      "encoder": {
-          "type": "rnn",
-          "input_size": EMBEDDING_DIM,
-          "hidden_size": HIDDEN_DIM,
-          "bidirectional": false,
-          "num_layers": 1,
-      },
+      "activations": USE_ACTIVATIONS,
+      "input_size": EMBEDDING_DIM,
+      "hidden_size": HIDDEN_DIM,
     },
 
     "seq2vec_encoder": {
@@ -83,16 +75,23 @@ local DATA_ROOT = "/net/nfs.corp/allennlp/willm/data";
       "sorting_keys": [["tokens", "tokens___tokens"]],
       "batch_size": BATCH_SIZE,
   },
+
   "trainer": {
-      "optimizer": {
-        "type": OPTIMIZER,
+    "type": "callback",
+
+    "callbacks": [
+      {
+        "type": "pruner",
+        "epoch": 4,
       },
-      "num_epochs": 300,
-      "patience": PATIENCE,
-      "cuda_device": 0,
-      "validation_metric": "+accuracy",
-      "checkpointer": {
-        "num_serialized_models_to_keep": 1,
-      },
+    ],
+
+    "optimizer": {
+      "type": OPTIMIZER,
+    },
+    "num_epochs": 300,
+    "patience": PATIENCE,
+    "cuda_device": 0,
+    "validation_metric": "+accuracy",
   }
 }
