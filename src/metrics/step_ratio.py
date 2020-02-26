@@ -38,7 +38,7 @@ class StepRatio(Metric):
             mag_norm = torch.norm(params - self.last_params, p=2)
             self.metric = (dir_norm / mag_norm).item()
 
-        self.last_params = params
+        self.last_params = params.clone()
         self.last_norm = norm
         self.last_norm_params = norm_params
 

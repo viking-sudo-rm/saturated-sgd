@@ -35,10 +35,12 @@ local DATASET_SIZE = 8544;
 
     "parameter_metrics": {
         "norm": "param_norm",
-        "step_ratio": "step_ratio",
-        "step_ratio_scaled": {
-          "type": "step_ratio",
-          "norm_scaled": true,
+        // The similarity between \theta_t and \theta_{t+1}, should go to 1 always.
+        "alpha": "outward_projection",
+        // The similarity between \theta_t and \Delta\theta. Does it go to 1?
+        "beta": {
+          "type": "outward_projection",
+          "use_step": true,
         },
     },
 
