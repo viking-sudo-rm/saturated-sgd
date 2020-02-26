@@ -11,12 +11,11 @@ class OutwardProjection(Metric):
 
     """Two measures of angular drift, using cosine distance."""
 
-    def __init__(self, use_step: bool = False) -> None:
-        # Tensors to memoize the computation.
-        self.use_step = use_step
+    def __init__(self) -> None:
         self.cos_sim = torch.nn.CosineSimilarity(dim=0)
         self.last_params = None
-        self.metric = None
+        self.alpha = None
+        self.beta = None
 
     def __call__(
         self,
@@ -25,26 +24,28 @@ class OutwardProjection(Metric):
         params = [torch.flatten(param) for param in params]
         params = torch.cat(params)
 
-        if self.last_params is None:
-            self.metric = 0.
-
-        if self.use_step:
-            step = params - self.last_params
-            self.metric = self.cos_sim(step, self.last_params)
-            self.metric = torch.abs(self.metric).item()
+        if self.alpha is None:
+            self.alpha = 0.
+            self.beta = 0.
 
         else:
-            self.metric = self.cos_sim(params, self.last_params)
-            self.metric = torch.abs(self.metric).item()
+            step = params - self.last_params
+            self.alpha = torch.abs(self.cos_sim(params, self.last_params)).item()
+            self.beta = torch.abs(self.cos_sim(step, self.last_params)).item()
 
         self.last_params = params.clone()
 
     def get_metric(self, reset: bool = False):
+        results = {
+            "alpha": self.alpha,
+            "beta": self.beta,
+        }
         if reset:
             self.reset()
-        return self.metric
+        return results
 
     @overrides
     def reset(self):
         self.last_params = None
-        self.metric = None
+        self.alpha = None
+        self.beta = None

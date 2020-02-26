@@ -35,13 +35,8 @@ local DATASET_SIZE = 8544;
 
     "parameter_metrics": {
         "norm": "param_norm",
-        // The similarity between \theta_t and \theta_{t+1}, should go to 1 always.
-        "alpha": "outward_projection",
-        // The similarity between \theta_t and \Delta\theta. Does it go to 1?
-        "beta": {
-          "type": "outward_projection",
-          "use_step": true,
-        },
+        "angles": "outward_projection",
+        "step": "mag_dir_step",
     },
 
     "text_field_embedder": {
