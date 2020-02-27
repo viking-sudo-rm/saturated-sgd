@@ -38,6 +38,7 @@ class MagnitudeDirectionStep(Metric):
         self.last_magnitude = magnitude
         self.last_direction = direction
 
+    @overrides
     def get_metric(self, reset: bool = False):
         result = {
             "magnitude_step": self.magnitude_metric,

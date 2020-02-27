@@ -9,6 +9,9 @@ from allennlp.modules.seq2seq_encoders import Seq2SeqEncoder
 from allennlp.modules.seq2vec_encoders import Seq2VecEncoder
 from allennlp.modules.text_field_embedders import TextFieldEmbedder
 
+from src.utils.metrics import update_metrics
+from src.metrics.saturation_error import SaturationError
+
 
 @Model.register("sat_metrics_classifier")
 class SatMetricsClassifier(BasicClassifier):
@@ -30,9 +33,10 @@ class SatMetricsClassifier(BasicClassifier):
         super().__init__(vocab, text_field_embedder, seq2vec_encoder, **kwargs)
         self.parameter_metrics = parameter_metrics
         self.activation_metrics = activation_metrics
+        self.saturation_error = SaturationError()
     
     def forward(  # type: ignore
-        self, tokens, label
+        self, tokens, label, _saturated=False,
     ) -> Dict[str, torch.Tensor]:
         # Quick-and-dirty copied.
         embedded_sequence = self._text_field_embedder(tokens)
@@ -59,7 +63,9 @@ class SatMetricsClassifier(BasicClassifier):
             output_dict["loss"] = loss
             self._accuracy(logits, label)
         
-        # My metric stuff.
+            if not _saturated:
+                loss_callback = lambda: self.forward(tokens, label, _saturated=True)["loss"]
+                self.saturation_error(loss, self.parameters(), loss_callback)
         
         for metric_fn in self.parameter_metrics.values():
             metric_fn(self.parameters())
@@ -70,12 +76,15 @@ class SatMetricsClassifier(BasicClassifier):
         return output_dict
     
     def get_metrics(self, reset: bool = False):
-        metrics = super().get_metrics(reset=reset)
+        metrics = super().get_metrics(reset=reset)        
+        metrics["sat_error"] = self.saturation_error.get_metric(reset=reset)
 
         for name, metric in self.parameter_metrics.items():
-            metrics[name] = metric.get_metric(reset=reset)
+            value = metric.get_metric(reset=reset)
+            update_metrics(metrics, name, value)
         
         for name, metric in self.activation_metrics.items():
-            metrics[name] = metric.get_metric(reset=reset)
+            value = metric.get_metric(reset=reset)
+            update_metrics(metrics, name, value)
 
         return metrics

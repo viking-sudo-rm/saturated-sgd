@@ -12,6 +12,7 @@ from allennlp.nn.util import get_text_field_mask, sequence_cross_entropy_with_lo
 from allennlp.training.metrics import Metric
 
 from src.metrics.l2 import L2Error
+from src.utils.metrics import update_metrics
 
 
 @Model.register("sat_metrics_tagger")
@@ -94,12 +95,15 @@ class SatMetricsTagger(SimpleTagger):
 
         if self.saturated:
             for name, metric in self.saturated_metrics.items():
-                metrics[name] = metric.get_metric(reset=reset)
+                value = metric.get_metric(reset=reset)
+                update_metrics(metrics, name, value)
 
         for name, metric in self.parameter_metrics.items():
-            metrics[name] = metric.get_metric(reset=reset)
+            value = metric.get_metric(reset=reset)
+            update_metrics(metrics, name, value)
         
         for name, metric in self.activation_metrics.items():
-            metrics[name] = metric.get_metric(reset=reset)
+            value = metric.get_metric(reset=reset)
+            update_metrics(metrics, name, value)
 
         return metrics
