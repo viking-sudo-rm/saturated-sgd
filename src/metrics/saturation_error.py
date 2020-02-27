@@ -11,7 +11,7 @@ from allennlp.training.metrics.metric import Metric
 @Metric.register("saturation_error")
 class SaturationError(Metric):
 
-    """Compute the error between the saturated and unsaturated networks."""
+    """Measure the error in terms of argmax ranking between saturated and unsaturated networks."""
 
     def __init__(self, infinity: float = 1e3) -> None:
         self.infinity = infinity
