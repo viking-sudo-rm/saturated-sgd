@@ -25,17 +25,16 @@ class SaturationError(Metric):
     ):
         parameters = list(parameters)
         old_params = [param.clone().detach() for param in parameters]
-        for param in parameters:
-            param.data.requires_grad = False
-            param.data.mul_(self.infinity)
         
         with torch.no_grad():
+            for param in parameters:
+                param.data.mul_(self.infinity)
+
             hard_loss = loss_callback()
 
             # Set to old value to avoid numerical instability in division.
             for param, old_param in zip(parameters, old_params):
                 param.set_(old_param)
-                param.data.requires_grad = True
 
         self.sat_error = (loss.detach() - hard_loss).abs().item()
 
