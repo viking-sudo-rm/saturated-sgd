@@ -64,8 +64,8 @@ class SatMetricsClassifier(BasicClassifier):
             self._accuracy(logits, label)
         
             if not _saturated:
-                loss_callback = lambda: self.forward(tokens, label, _saturated=True)["loss"]
-                self.saturation_error(loss, self.parameters(), loss_callback)
+                logits_callback = lambda: self.forward(tokens, label, _saturated=True)["logits"]
+                self.saturation_error(logits, self.parameters(), logits_callback, mask=mask)
         
         for metric_fn in self.parameter_metrics.values():
             metric_fn(self.parameters())
