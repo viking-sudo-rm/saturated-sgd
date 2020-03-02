@@ -1,57 +1,53 @@
 import torch
 from torch.nn import Parameter
 from unittest import TestCase
+from parameterized import parameterized
 
 from src.metrics.saturation_error import SaturationError
 
+# Add new models below these ones so that randomness isn't disturbed.
+torch.manual_seed(3)
 
-# This network should not be strongly saturating.
+RELU = torch.nn.Sequential(
+    torch.nn.Linear(10, 10),
+    torch.nn.ReLU(),
+    torch.nn.Linear(10, 10),
+)
+
+# Does this network have zero cross entropy loss? What about the ranking of logits?
 SIGMOID = torch.nn.Sequential(
     torch.nn.Linear(10, 10),
     torch.nn.Sigmoid(),
     torch.nn.Linear(10, 10),
 )
 
+WEIRD_RELU = torch.nn.Sequential(
+    torch.nn.Linear(10, 10, bias=False),
+    torch.nn.ReLU(),
+    torch.nn.Linear(10, 10, bias=False),
+    torch.nn.ReLU(),
+)
+
 
 class SaturationErrorTest(TestCase):
 
-    def test_sigmoid(self):
-        torch.manual_seed(2)
+    @parameterized.expand([
+        ["sigmoid", SIGMOID, {"max": .0, "sorted": .2}],
+        ["relu", RELU, {"max": .0, "sorted": .7}],
+        ["weird_relu", WEIRD_RELU, {"max": .0, "sorted": .0}],
+    ])
+    def test_logits(self, _name, model, exp_results):
         metric = SaturationError()
+        old_params = [param.clone() for param in model.parameters()]
 
-        cross_entropy = torch.nn.CrossEntropyLoss()
         inputs = torch.randn([1, 10])
-        label = torch.tensor([4])
+        logits_callback = lambda: model(inputs)
+        logits = logits_callback()
         
-        loss = cross_entropy(SIGMOID(inputs), label)
-        parameters = list(SIGMOID.parameters())
-        loss_callback = lambda: cross_entropy(SIGMOID(inputs), label)
-        
-        metric(loss, parameters, loss_callback)
-        error = metric.get_metric(reset=True)
-        exp_error = 0.
-        torch.testing.assert_allclose(error, exp_error)
+        metric(logits, model.parameters(), logits_callback)
+        results = metric.get_metric(reset=True)
+        assert results == exp_results
 
-        for param, new_param in zip(parameters, SIGMOID.parameters()):
-            torch.testing.assert_allclose(param, new_param)
-
-    def test_sigmoid_masked(self):
-        torch.manual_seed(2)
-        metric = SaturationError()
-
-        cross_entropy = torch.nn.CrossEntropyLoss()
-        inputs = torch.randn([1, 10])
-        label = torch.tensor([4])
-        
-        loss = cross_entropy(SIGMOID(inputs), label)
-        parameters = list(SIGMOID.parameters())
-        loss_callback = lambda: cross_entropy(SIGMOID(inputs), label)
-        mask = torch.tensor([1])
-        
-        metric(loss, parameters, loss_callback, mask=mask)
-        error = metric.get_metric(reset=True)
-        exp_error = 0.
-        torch.testing.assert_allclose(error, exp_error)
-
-        for param, new_param in zip(parameters, SIGMOID.parameters()):
-            torch.testing.assert_allclose(param, new_param)
+        # Check that parameters are reset properly
+        for old_param, new_param in zip(old_params, model.parameters()):
+            torch.testing.assert_allclose(old_param, new_param)

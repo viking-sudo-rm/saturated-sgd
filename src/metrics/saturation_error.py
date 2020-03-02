@@ -4,7 +4,6 @@ from overrides import overrides
 import torch
 from torch.nn import Parameter
 
-from allennlp.models import Model
 from allennlp.training.metrics.metric import Metric
 
 
@@ -15,8 +14,10 @@ class SaturationError(Metric):
 
     def __init__(self, infinity: float = 1e3) -> None:
         self.infinity = infinity
-        self.error_sum = 0.
-        self.error_num = 0
+        self.sorted_sum = 0.
+        self.sorted_num = 0
+        self.max_sum = 0.
+        self.max_num = 0
 
     def __call__(
         self,
@@ -26,36 +27,47 @@ class SaturationError(Metric):
         mask: Optional[torch.Tensor] = None,
     ):
         parameters = list(parameters)
-        old_params = [param.clone().detach() for param in parameters]
+        old_param_data = [param.data for param in parameters]
         
         with torch.no_grad():
             for param in parameters:
-                param.data.mul_(self.infinity)
+                param.data = param.data.mul(self.infinity)
 
             hard_logits = logits_callback()
 
             # Set to old value to avoid numerical instability in division.
-            for param, old_param in zip(parameters, old_params):
-                param.set_(old_param)
+            for param, data in zip(parameters, old_param_data):
+                param.data = data
 
         rank = logits.detach().argsort(-1)
         hard_rank = hard_logits.argsort(-1)
+        pred = rank.select(-1, -1)
+        hard_pred = hard_rank.select(-1, -1)
 
         if mask is None:
-            self.error_sum = torch.sum(rank != hard_rank)
-            self.error_num = rank.numel()
+            self.sorted_sum = torch.sum(rank != hard_rank)
+            self.sorted_num = rank.numel()
+            self.max_sum = torch.sum(pred != hard_pred)
+            self.max_num = pred.numel()
         else:
-            self.error_sum = torch.sum(mask.unsqueeze(-1) * (rank != hard_rank))
-            self.error_num = torch.sum(mask)
+            self.sorted_sum = torch.sum(mask * (rank != hard_rank))
+            self.sorted_num = torch.sum(mask)
+            self.max_sum = torch.sum(mask * (pred != hard_pred))
+            self.max_num = torch.sum(mask)
 
     @overrides
     def get_metric(self, reset: bool = False):
-        error = float(self.error_sum) / float(self.error_num)
+        results = {
+            "sorted": float(self.sorted_sum) / float(self.sorted_num),
+            "max": float(self.max_sum) / float(self.max_num),
+        }
         if reset:
             self.reset()
-        return error
+        return results
 
     @overrides
     def reset(self):
-        self.error_sum = 0.
-        self.error_num = 0
+        self.sorted_sum = 0.
+        self.sorted_num = 0
+        self.max_sum = 0.
+        self.max_num = 0

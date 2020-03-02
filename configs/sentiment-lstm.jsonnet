@@ -5,7 +5,7 @@ local N_LAYERS = 3;
 
 # Optimization hyperparameters.
 local BATCH_SIZE = 32; # 16, 32
-local OPTIMIZER = "huggingface_adamw";
+local OPTIMIZER = std.extVar("OPTIM");
 local LEARNING_RATE = 2e-5;  # 5e-5, 3e-5, 2e-5
 
 # Path to the data on the file system.
@@ -71,12 +71,13 @@ local DATASET_SIZE = 8544;
       "lr": LEARNING_RATE,
     },
     // This is the correct learning rate setup for finetuning BERT.
-    "learning_rate_scheduler": {
-      "type": "slanted_triangular",
-      "num_epochs": 20,
-      "num_steps_per_epoch": std.floor(DATASET_SIZE / BATCH_SIZE),
-    },
-    "num_epochs": 20,
+    // "learning_rate_scheduler": {
+    //   "type": "slanted_triangular",
+    //   "num_epochs": 20,
+    //   "num_steps_per_epoch": std.floor(DATASET_SIZE / BATCH_SIZE),
+    // },
+    // "num_epochs": 20,
+    "num_epochs": 1000,
     "cuda_device": 0,
     "validation_metric": "+accuracy",
     "checkpointer": {

@@ -13,28 +13,43 @@ class ParamNorm(Metric):
     """Track the norm of the parameters."""
 
     def __init__(self) -> None:
-        self._absolute_error = 0.0
-        self._total_count = 0.0
+        self.norm = 0.
+        self.max_abs = 0.
+        self.min_abs = 0.
+        self.mean_abs = 0.
+        self.std_abs = 0.
 
     def __call__(
         self,
         params: List[torch.FloatTensor],
     ):
-
         params = [torch.flatten(param) for param in params]
         params = torch.cat(params)
-        norm = torch.norm(params, p=2)
+        self.norm = torch.norm(params, p=2).item()
 
-        self._total_count += 1
-        self._absolute_error += norm.item()
+        abs_params = torch.abs(params)
+        self.max_abs = torch.max(abs_params).item()
+        self.min_abs = torch.min(abs_params).item()
+        self.mean_abs = torch.mean(abs_params).item()
+        self.std_abs = torch.std(abs_params).item()
 
+    @overrides
     def get_metric(self, reset: bool = False):
-        mean_absolute_error = float(self._absolute_error) / float(self._total_count)
+        results = {
+            "norm": self.norm,
+            "max_abs": self.max_abs,
+            "min_abs": self.min_abs,
+            "mean_abs": self.mean_abs,
+            "std_abs": self.std_abs,
+        }
         if reset:
             self.reset()
-        return mean_absolute_error
+        return results
 
     @overrides
     def reset(self):
-        self._absolute_error = 0.0
-        self._total_count = 0.0
+        self.norm = 0.
+        self.max_abs = 0.
+        self.min_abs = 0.
+        self.mean_abs = 0.
+        self.std_abs = 0.

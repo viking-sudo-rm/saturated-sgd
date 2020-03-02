@@ -58,15 +58,17 @@ class SatMetricsClassifier(BasicClassifier):
 
         output_dict = {"logits": logits, "probs": probs}
 
+        if _saturated:
+            return output_dict
+
         if label is not None:
             loss = self._loss(logits, label.long().view(-1))
             output_dict["loss"] = loss
             self._accuracy(logits, label)
-        
-            if not _saturated:
-                logits_callback = lambda: self.forward(tokens, label, _saturated=True)["logits"]
-                self.saturation_error(logits, self.parameters(), logits_callback, mask=mask)
-        
+
+        logits_callback = lambda: self.forward(tokens, None, _saturated=True)["logits"]
+        self.saturation_error(logits, self.parameters(), logits_callback)
+
         for metric_fn in self.parameter_metrics.values():
             metric_fn(self.parameters())
         
@@ -76,8 +78,11 @@ class SatMetricsClassifier(BasicClassifier):
         return output_dict
     
     def get_metrics(self, reset: bool = False):
-        metrics = super().get_metrics(reset=reset)        
-        metrics["sat_error"] = self.saturation_error.get_metric(reset=reset)
+        metrics = super().get_metrics(reset=reset)
+
+        # Hard coded the saturation error in here because of its weird signature.
+        value = self.saturation_error.get_metric(reset=reset)
+        update_metrics(metrics, "sat_error", value)
 
         for name, metric in self.parameter_metrics.items():
             value = metric.get_metric(reset=reset)
