@@ -1,7 +1,7 @@
 # Architecture hyperparameters.
 local EMBEDDING_DIM = 300;
 local HIDDEN_DIM = 200;
-local N_LAYERS = 3;
+local N_LAYERS = 1;
 
 # Optimization hyperparameters.
 local BATCH_SIZE = 32; # 16, 32
@@ -33,8 +33,22 @@ local DATASET_SIZE = 8544;
 
     "parameter_metrics": {
         "norm": "param_norm",
-        "angles": "outward_projection",
-        "step": "mag_dir_step",
+        "num_saturated": {
+          "type": "num_saturated",
+          "weight_delta": 0.01,
+          "act_delta": 0.5,
+          "act_norm": 2,
+        },
+        "mask_change": {
+          "type": "mask_change",
+          "percent": 0.5,
+          "normalize": false,
+        },
+        "norm_mask_change": {
+          "type": "mask_change",
+          "percent": 0.5,
+          "normalize": true,
+        },
     },
 
     "text_field_embedder": {
@@ -46,6 +60,16 @@ local DATASET_SIZE = 8544;
       },
     },
 
+    // "seq2seq_encoder": {
+    //   "type": "stacked_self_attention",
+    //   "input_dim": EMBEDDING_DIM,
+    //   "hidden_dim": 1000,
+    //   "projection_dim": 100,
+    //   "feedforward_hidden_dim": 5000,
+    //   "num_layers": 10,
+    //   "num_attention_heads": 10,
+    // },
+
     "seq2seq_encoder": {
       "type": "lstm",
       "input_size": EMBEDDING_DIM,
@@ -55,29 +79,26 @@ local DATASET_SIZE = 8544;
 
     "seq2vec_encoder": {
       "type": "boe",
+      // "embedding_dim": 1000,
       "embedding_dim": HIDDEN_DIM,
     },
 
   },
 
-  "iterator": {
+  "data_loader": {
+    "batch_sampler": {
       "type": "bucket",
-      "sorting_keys": [["tokens", "tokens___tokens"]],
       "batch_size": BATCH_SIZE,
+    },
   },
+
   "trainer": {
     "optimizer": {
       "type": OPTIMIZER,
       "lr": LEARNING_RATE,
     },
-    // This is the correct learning rate setup for finetuning BERT.
-    // "learning_rate_scheduler": {
-    //   "type": "slanted_triangular",
-    //   "num_epochs": 20,
-    //   "num_steps_per_epoch": std.floor(DATASET_SIZE / BATCH_SIZE),
-    // },
-    // "num_epochs": 20,
     "num_epochs": 1000,
+    "patience": 10,
     "cuda_device": 0,
     "validation_metric": "+accuracy",
     "checkpointer": {

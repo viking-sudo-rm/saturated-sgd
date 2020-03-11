@@ -11,6 +11,8 @@ from allennlp.modules.text_field_embedders import TextFieldEmbedder
 
 from src.utils.metrics import update_metrics
 from src.metrics.saturation_error import SaturationError
+from src.metrics.sat_cos_sim import SaturationCosSim
+from src.utils.saturate import saturate
 
 
 @Model.register("sat_metrics_classifier")
@@ -34,13 +36,16 @@ class SatMetricsClassifier(BasicClassifier):
         self.parameter_metrics = parameter_metrics
         self.activation_metrics = activation_metrics
         self.saturation_error = SaturationError()
-    
+        self.saturation_sim = SaturationCosSim()
+
+
+
     def forward(  # type: ignore
         self, tokens, label, _saturated=False,
     ) -> Dict[str, torch.Tensor]:
         # Quick-and-dirty copied.
         embedded_sequence = self._text_field_embedder(tokens)
-        mask = get_text_field_mask(tokens).float()
+        mask = get_text_field_mask(tokens)
 
         if self._seq2seq_encoder:
             embedded_sequence = self._seq2seq_encoder(embedded_sequence, mask=mask)
@@ -56,7 +61,11 @@ class SatMetricsClassifier(BasicClassifier):
         logits = self._classification_layer(embedded_text)
         probs = torch.nn.functional.softmax(logits, dim=-1)
 
-        output_dict = {"logits": logits, "probs": probs}
+        output_dict = {
+            "embedded_sequence": embedded_sequence,
+            "logits": logits,
+            "probs": probs,
+        }
 
         if _saturated:
             return output_dict
@@ -66,23 +75,29 @@ class SatMetricsClassifier(BasicClassifier):
             output_dict["loss"] = loss
             self._accuracy(logits, label)
 
-        logits_callback = lambda: self.forward(tokens, None, _saturated=True)["logits"]
-        self.saturation_error(logits, self.parameters(), logits_callback)
+        with saturate(self, 1e3):
+            sat_output_dict = self.forward(tokens, None, _saturated=True)
+
+        logits_callback = lambda: ["logits"]
+        self.saturation_error(logits, self.parameters(), lambda: sat_output_dict["logits"])
+        self.saturation_sim(embedded_sequence, self, lambda: sat_output_dict["embedded_sequence"], mask)
 
         for metric_fn in self.parameter_metrics.values():
             metric_fn(self.parameters())
-        
+
         for metric_fn in self.activation_metrics.values():
-            metric_fn(embedded_sequence, mask=mask)
+            metric_fn(embedded_sequence, mask=mask.float())
 
         return output_dict
     
     def get_metrics(self, reset: bool = False):
         metrics = super().get_metrics(reset=reset)
 
-        # Hard coded the saturation error in here because of its weird signature.
+        # TODO: Refactor these saturation metrics under a common signature; probably just pass two dictionaries of results.
         value = self.saturation_error.get_metric(reset=reset)
         update_metrics(metrics, "sat_error", value)
+        value = self.saturation_sim.get_metric(reset=reset)
+        update_metrics(metrics, "sat_sim", value)
 
         for name, metric in self.parameter_metrics.items():
             value = metric.get_metric(reset=reset)

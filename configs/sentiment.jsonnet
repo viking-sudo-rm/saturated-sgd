@@ -35,8 +35,16 @@ local DATASET_SIZE = 8544;
 
     "parameter_metrics": {
         "norm": "param_norm",
-        "angles": "outward_projection",
-        "step": "mag_dir_step",
+        "mask_change": {
+          "type": "mask_change",
+          "percent": 0.5,
+          "normalize": false,
+        },
+        "norm_mask_change": {
+          "type": "mask_change",
+          "percent": 0.5,
+          "normalize": true,
+        },
     },
 
     "text_field_embedder": {
@@ -60,11 +68,13 @@ local DATASET_SIZE = 8544;
 
   },
 
-  "iterator": {
+  "data_loader": {
+    "batch_sampler": {
       "type": "bucket",
-      "sorting_keys": [["tokens", "roberta___token_ids"]],
       "batch_size": BATCH_SIZE,
+    },
   },
+
   "trainer": {
     "optimizer": {
       "type": OPTIMIZER,

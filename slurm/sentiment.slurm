@@ -11,12 +11,11 @@ source /home/willm/anaconda3/bin/activate allennlp
 cd /home/willm/code/saturated-sgd
 conf=configs/sentiment.jsonnet
 
-optim=norm_sgd
-
 # model=roberta-base
 # dir=/tmp/willm/saturated-sgd/sentiment/${model}
 # MODEL=$model allennlp train $conf -s $dir --include-package src
 
+optim=adamw
 conf=configs/sentiment-lstm.jsonnet
 dir=/tmp/willm/saturated-sgd/sentiment/lstm-${optim}
 OPTIM=$optim allennlp train $conf -s $dir --include-package=src

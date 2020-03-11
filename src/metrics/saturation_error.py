@@ -32,33 +32,30 @@ class SaturationError(Metric):
         with torch.no_grad():
             for param in parameters:
                 param.data = param.data.mul(self.infinity)
-
             hard_logits = logits_callback()
-
-            # Set to old value to avoid numerical instability in division.
             for param, data in zip(parameters, old_param_data):
                 param.data = data
 
-        rank = logits.detach().argsort(-1)
-        hard_rank = hard_logits.argsort(-1)
-        pred = rank.select(-1, -1)
-        hard_pred = hard_rank.select(-1, -1)
+        # rank = logits.detach().argsort(-1)
+        # hard_rank = hard_logits.argsort(-1)
+        pred = logits.argmax(dim=-1)
+        hard_pred = hard_logits.argmax(dim=-1)
 
         if mask is None:
-            self.sorted_sum = torch.sum(rank != hard_rank)
-            self.sorted_num = rank.numel()
+            # self.sorted_sum = torch.sum(rank != hard_rank)
+            # self.sorted_num = rank.numel()
             self.max_sum = torch.sum(pred != hard_pred)
             self.max_num = pred.numel()
         else:
-            self.sorted_sum = torch.sum(mask * (rank != hard_rank))
-            self.sorted_num = torch.sum(mask)
+            # self.sorted_sum = torch.sum(mask * (rank != hard_rank))
+            # self.sorted_num = torch.sum(mask)
             self.max_sum = torch.sum(mask * (pred != hard_pred))
             self.max_num = torch.sum(mask)
 
     @overrides
     def get_metric(self, reset: bool = False):
         results = {
-            "sorted": float(self.sorted_sum) / float(self.sorted_num),
+            # "sorted": float(self.sorted_sum) / float(self.sorted_num),
             "max": float(self.max_sum) / float(self.max_num),
         }
         if reset:

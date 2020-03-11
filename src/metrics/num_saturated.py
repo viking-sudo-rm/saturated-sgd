@@ -3,6 +3,7 @@ from typing import Optional, List
 from overrides import overrides
 import torch
 import torch.nn.functional as F
+from math import sqrt
 
 from allennlp.training.metrics.metric import Metric
 
@@ -12,39 +13,50 @@ class NumSaturated(Metric):
 
     """A metric to count the percentage of activations that are saturated.
     
-    We approximate this by rounding the activations to the nearest integer and measuring the
-    distance from the actual value to the rounded value.
+    There are two ways to do this:
+    1. Weight saturation: Count the percent of weights with magnitude above some threshold.
+    2. Activation saturation: Count the percent of activations with norm above some threshold.
+
+    TODO: Which is a better norm here? L1 or L2? Using L2 now for default.
     """
 
-    def __init__(self, delta: float = 0.1, values: List[float] = [-1.0, 1.0]) -> None:
-        self.delta = delta
-        self.values = values  # The values that we consider asymptotes for saturation.
-        self._absolute_error = 0.0
-        self._total_count = 0.0
+    def __init__(self, weight_delta: float, act_delta: float, act_norm: int = 2) -> None:
+        self.weight_delta = weight_delta
+        self.act_delta = act_delta
+        self.act_norm = act_norm
 
-    def __call__(
-        self, activations: torch.Tensor, mask: Optional[torch.Tensor] = None,
-    ):
-        is_saturated = torch.zeros_like(activations, dtype=torch.bool)
-        for value in self.values:
-            is_saturated |= torch.abs(activations - value) < self.delta
+        self.n_weight = 0
+        self.n_act = 0
 
-        if mask is not None:
-            mask = mask.unsqueeze(-1)
-            n_hidden = activations.size(-1)
-            self._total_count += torch.sum(mask) * n_hidden
-            self._absolute_error += torch.sum((is_saturated * mask).float())
-        else:
-            self._total_count += is_saturated.numel()
-            self._absolute_error += torch.sum(is_saturated.float())
+    def __call__(self, parameters):
+        self.reset()
+        parameters = list(parameters)
+
+        # Compute activation-level metrics.
+        for param in parameters:
+            if len(param.size()) != 2:
+                continue
+            norm = param.norm(dim=1, p=self.act_norm)
+            if self.act_norm == 1:
+                norm = norm / param.size(1)
+            else:
+                norm = norm / sqrt(param.size(1))
+            self.n_act += torch.sum(norm > self.act_delta)
+
+        # Compute weight-level metrics.
+        parameters = torch.cat([param.flatten() for param in parameters])
+        self.n_weight = torch.sum(parameters.abs() > self.weight_delta)
 
     def get_metric(self, reset: bool = False):
-        mean_absolute_error = float(self._absolute_error) / float(self._total_count)
+        results = {
+            "weight": self.n_weight.item(),
+            "act": self.n_act.item(),
+        }
         if reset:
             self.reset()
-        return mean_absolute_error
+        return results
 
     @overrides
     def reset(self):
-        self._absolute_error = 0.0
-        self._total_count = 0.0
+        self.n_act = 0
+        self.n_weight = 0

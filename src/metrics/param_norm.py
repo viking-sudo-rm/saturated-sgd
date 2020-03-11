@@ -13,7 +13,10 @@ class ParamNorm(Metric):
     """Track the norm of the parameters."""
 
     def __init__(self) -> None:
-        self.norm = 0.
+        self.l1_mean_norm = 0.
+        self.l2_mean_norm = 0.
+        self.l1_norm = 0.
+        self.l2_norm = 0.
         self.max_abs = 0.
         self.min_abs = 0.
         self.mean_abs = 0.
@@ -23,10 +26,18 @@ class ParamNorm(Metric):
         self,
         params: List[torch.FloatTensor],
     ):
+        # Mean norms.
         params = [torch.flatten(param) for param in params]
-        params = torch.cat(params)
-        self.norm = torch.norm(params, p=2).item()
+        # TODO: Can compute these more efficiently with running average if memory becomes issue.
+        self.l1_mean_norm = torch.mean(torch.stack([param.norm(p=1) for param in params])).item()
+        self.l2_mean_norm = torch.mean(torch.stack([param.norm(p=2) for param in params])).item()
 
+        # Global norms.
+        params = torch.cat(params)
+        self.l1_norm = torch.norm(params, p=1).item()
+        self.l2_norm = torch.norm(params, p=2).item()
+
+        # Parameter norms.
         abs_params = torch.abs(params)
         self.max_abs = torch.max(abs_params).item()
         self.min_abs = torch.min(abs_params).item()
@@ -36,11 +47,20 @@ class ParamNorm(Metric):
     @overrides
     def get_metric(self, reset: bool = False):
         results = {
-            "norm": self.norm,
-            "max_abs": self.max_abs,
-            "min_abs": self.min_abs,
-            "mean_abs": self.mean_abs,
-            "std_abs": self.std_abs,
+            "norm": {
+                "l1": self.l1_norm,
+                "l2": self.l2_norm,
+            },
+            "mean_norm": {
+                "l1": self.l1_mean_norm,
+                "l2": self.l2_mean_norm,
+            },
+            "abs": {
+                "max": self.max_abs,
+                "min": self.min_abs,
+                "mean": self.mean_abs,
+                "std": self.std_abs,
+            },
         }
         if reset:
             self.reset()
@@ -48,7 +68,10 @@ class ParamNorm(Metric):
 
     @overrides
     def reset(self):
-        self.norm = 0.
+        self.l1_mean_norm = 0.
+        self.l2_mean_norm = 0.
+        self.l1_norm = 0.
+        self.l2_norm = 0.
         self.max_abs = 0.
         self.min_abs = 0.
         self.mean_abs = 0.
