@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 from typing import List
 
 from allennlp.data import Instance

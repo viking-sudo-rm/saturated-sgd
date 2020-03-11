@@ -36,7 +36,7 @@ local DATASET_SIZE = 8544;
         "num_saturated": {
           "type": "num_saturated",
           "weight_delta": 0.01,
-          "act_delta": 0.5,
+          "act_delta": 0.01,
           "act_norm": 2,
         },
         "mask_change": {
