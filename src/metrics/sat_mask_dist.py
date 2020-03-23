@@ -26,7 +26,7 @@ class MaskChange(Metric):
     ):
         if self.normalize:
             # Normalize by the square root of the input dimension.
-            activation_norms = [param.norm(dim=1) / sqrt(param.size(0)) for param in parameters if len(param.size()) == 2]
+            activation_norms = [param.norm(dim=1) / sqrt(param.size(1)) for param in parameters if len(param.size()) == 2]
         else:
             activation_norms = [param.norm(dim=1) for param in parameters if len(param.size()) == 2]
         activation_norms = torch.cat(activation_norms)
