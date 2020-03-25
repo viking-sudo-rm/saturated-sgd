@@ -31,7 +31,7 @@ NORM = ParamNorm()
 
 def parse_args():
     parser = ArgumentParser()
-    parser.add_argument("--model", type=str, default="t5-base")
+    parser.add_argument("--model", action="append")
     return parser.parse_args()
 
 
@@ -50,7 +50,6 @@ def get_similarity(sentences, tokenizer, model, infinity: float = 10) -> float:
 
         sim = cos(outputs.flatten(start_dim=1), sat_outputs.flatten(start_dim=1))
         sims.append(sim)
-
     return torch.mean(torch.stack(sims, dim=0)).item()
 
 
@@ -64,10 +63,7 @@ infs = [1, 1.1, 1.2, 1.3, 1.4, 1.5, 2.0, 10.0, 100.0]
 
 
 def main(args):
-    model_name = args.model
-    print(f"Loading {model_name} tokenizer and model...")
-    tokenizer, model = get_tokenizer_and_model(model_name)
-    model_dir = os.path.join(PATH, model_name)
+    model_dir = os.path.join(PATH, ",".join(args.model))
     if not os.path.isdir(model_dir):
         os.mkdir(model_dir)
 
@@ -78,29 +74,33 @@ def main(args):
     weight_norm_dists = {}
     paired_norm_dists = {}
 
-    for inf in infs:
-        sim = get_similarity(sentences, tokenizer, model, infinity=inf)
-        sims[model_name].append(sim)
-        print(f"({model_name} * {inf:.2f}) sim={sim:.2f}")
+    for model_name in args.model:
+        print(f"Loading {model_name} tokenizer and model...")
+        tokenizer, model = get_tokenizer_and_model(model_name)
 
-    # This part excludes everything besides the encoder.
-    # TODO: Should probably redo old plots only with the encoder weights.
+        for inf in infs:
+            sim = get_similarity(sentences, tokenizer, model, infinity=inf)
+            sims[model_name].append(sim)
+            print(f"({model_name} * {inf:.2f}) sim={sim:.2f}")
 
-    parameters = list(model.parameters())  # Can also use `get_prunable_parameters` here.
-    act_norm_dists[model_name] = get_activation_norms(parameters)
-    weight_norm_dists[model_name] = get_weight_norms(parameters)
+        # This part excludes everything besides the encoder.
+        # TODO: Should probably redo old plots only with the encoder weights.
 
-    params_by_layer = get_params_by_layer(model)
-    paired_norm_dists[model_name] = {
-        layer: get_paired_mag_and_act_norms(params)
-        for layer, params in params_by_layer.items()
-    }
+        # parameters = list(model.parameters())  # Can also use `get_prunable_parameters` here.
+        parameters = get_prunable_parameters(model)
+        act_norm_dists[model_name] = get_activation_norms(parameters)
+        weight_norm_dists[model_name] = get_weight_norms(parameters)
 
-    norm_metric = get_norm_metric(parameters)
-    norm = norm_metric["mean_norm"]["l2"]
-    norms.append(norm)
-    print(f"({model_name}) mean_norm/l2={norm:.2f}")
+        params_by_layer = get_params_by_layer(model)
+        paired_norm_dists[model_name] = {
+            layer: get_paired_mag_and_act_norms(params)
+            for layer, params in params_by_layer.items()
+        }
 
+        norm_metric = get_norm_metric(parameters)
+        norm = norm_metric["mean_norm"]["l2"]
+        norms.append(norm)
+        print(f"({model_name}) mean_norm/l2={norm:.2f}")
 
     # print("Drawing norm vs. norm plot...")
     # for model_name, scatter_by_layer in paired_norm_dists.items():

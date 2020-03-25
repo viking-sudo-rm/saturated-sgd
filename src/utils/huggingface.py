@@ -31,24 +31,19 @@ def wrap_contextualize(model, input_ids) -> torch.FloatTensor:
     """Wrap a forward pass to the model and pick out the hidden states of the encoder."""
     results = model(input_ids=input_ids)
     assert model.output_hidden_states
-    if isinstance(model, RobertaModel):
-        return results[1]
-    elif isinstance(model, T5Model):
-        return results[1]
-    elif isinstance(model, XLNetModel):
-        # import pdb; pdb.set_trace()
-        # FIXME: Not sure if this is right; documentation is tough.
-        return results[0]
-    else:
-        return NotImplemented
+    assert len(results[0].shape) == 3
+    return results[0]
 
 
 def get_prunable_parameters(
     model: Module,
     only_matrices: bool = True,
-    exclude: List[str] = ["embed", "decoder.", "pooler."],
+    # TODO: Replace exclude with a filter function per model.
+    exclude: List[str] = ["embed", "decoder.", "pooler.", "shared."],
 ) -> List[Parameter]:
     """Get parameters for a model, potentially excluding the embedding layer."""
+    # names = [name for name, _ in model.named_parameters()]
+    # import pdb; pdb.set_trace()
     return [
         param
         for name, param in model.named_parameters()

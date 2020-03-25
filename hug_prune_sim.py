@@ -21,7 +21,7 @@ import random
 
 from src.utils.saturate import masked_saturate
 from src.utils.percentile import percentile
-from src.utils.huggingface import cos, get_tokenizer_and_model, get_prunable_parameters
+from src.utils.huggingface import cos, get_tokenizer_and_model, get_prunable_parameters, wrap_contextualize
 
 
 PATH = "images/"
@@ -146,14 +146,14 @@ def get_similarity(
     subnetwork: Iterable[Parameter],
     masks: Iterable[torch.Tensor],
     scale: float,
-):
+) -> float:
     sims = []
     for sentence in sentences:
         input_ids = torch.tensor(tokenizer.encode(sentence)).unsqueeze(0)
         # Index 0 is the pooled value, 1 is the tensor for the full sequence.
-        soft = model(input_ids=input_ids)[1]
+        soft = wrap_contextualize(model, input_ids)
         with masked_saturate(subnetwork, masks, scale):
-            hard = model(input_ids=input_ids)[1]
+            hard = wrap_contextualize(model, input_ids)
         sim = cos(soft.flatten(start_dim=1), hard.flatten(start_dim=1))
         sims.append(sim)
     return torch.mean(torch.stack(sims)).item()

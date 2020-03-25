@@ -31,14 +31,20 @@ def main(args):
     mean_act_norms_by_layer = {layer: np.mean(norms) for layer, norms in act_norms_by_layer.items()}
     mean_weight_norms_by_layer = {layer: np.mean(norms) for layer, norms in weight_norms_by_layer.items()}
 
-    # TODO: Also plot histograms, look at change of distribution?
+    # Make sure that necessary directories exist.
+    model_dir_path = os.path.join(PATH, args.model)
+    if not os.path.isdir(model_dir_path):
+        os.mkdir(model_dir_path)
+    dir_path = os.path.join(model_dir_path, "layerwise")
+    if not os.path.isdir(dir_path):
+        os.mkdir(dir_path)
 
     plt.figure()
     plt.plot(list(mean_act_norms_by_layer.keys()), list(mean_act_norms_by_layer.values()))
     plt.title("Mean activation norm by encoder layer")
     plt.xlabel("Layer")
     plt.ylabel("Mean act norm")
-    path = os.path.join(PATH, f"norm-by-layer/{args.model}-acts.png")
+    path = os.path.join(dir_path, "activations.png")
     plt.savefig(path)
     print(f"Saved activations plot to {path}.")
 
@@ -47,7 +53,7 @@ def main(args):
     plt.title("Mean weight norm by encoder layer")
     plt.xlabel("Layer")
     plt.ylabel("Mean weight norm")
-    path = os.path.join(PATH, f"norm-by-layer/{args.model}-weights.png")
+    path = os.path.join(dir_path, "weights.png")
     plt.savefig(path)
     print(f"Saved weights plot to {path}.")
 
