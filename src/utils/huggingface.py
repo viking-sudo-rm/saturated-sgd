@@ -1,6 +1,6 @@
 """Utils for working with scripts working with Huggingface models."""
 
-from typing import Dict, List, Tuple
+from typing import Callable, Dict, List, Tuple
 
 from collections import defaultdict
 import torch
@@ -9,36 +9,53 @@ from transformers import *
 import numpy as np
 from math import sqrt
 
+EPS = np.finfo(np.float).eps
 
-def cos(vec1, vec2):
-    """Return the cosine similarity between two vectors.
 
-    TODO: Handle zero case with an epsilon."""
-    return torch.sum(vec1 * vec2, dim=-1) / (vec1.norm(dim=-1) * vec2.norm(dim=-1))
+def cos(vec1: torch.FloatTensor, vec2: torch.FloatTensor) -> torch.FloatTensor:
+    """Return the cosine similarity between two vectors."""
+    norm1 = torch.clamp(vec1.norm(dim=-1), min=EPS)
+    norm2 = torch.clamp(vec2.norm(dim=-1), min=EPS)
+    return torch.sum(vec1 * vec2, dim=-1) / (norm1 * norm2)
 
 
 def get_tokenizer_and_model(model_name: str):
-    """Get Tokenizer and Model for a model name."""
-    if model_name.startswith("t5"):
-        tokenizer = T5Tokenizer.from_pretrained(model_name)
-        model = T5Model.from_pretrained(model_name)
-    else:
-        return NotImplemented
+    """Get `Tokenizer` and `Model` for a model name."""
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModel.from_pretrained(model_name)
+    model.output_hidden_states = True
     return tokenizer, model
 
 
-def get_parameters(
-    model: Module, exclude_embed: bool = True, exclude_decoder: bool = True
+def wrap_contextualize(model, input_ids) -> torch.FloatTensor:
+    """Wrap a forward pass to the model and pick out the hidden states of the encoder."""
+    results = model(input_ids=input_ids)
+    assert model.output_hidden_states
+    if isinstance(model, RobertaModel):
+        return results[1]
+    elif isinstance(model, T5Model):
+        return results[1]
+    elif isinstance(model, XLNetModel):
+        # import pdb; pdb.set_trace()
+        # FIXME: Not sure if this is right; documentation is tough.
+        return results[0]
+    else:
+        return NotImplemented
+
+
+def get_prunable_parameters(
+    model: Module,
+    only_matrices: bool = True,
+    exclude: List[str] = ["embed", "decoder.", "pooler."],
 ) -> List[Parameter]:
     """Get parameters for a model, potentially excluding the embedding layer."""
-    if not exclude_embed:
-        return list(model.parameters())
-    # Exclude the embedding layer from pruning.
     return [
         param
         for name, param in model.named_parameters()
-        if (not exclude_embed or "embed" not in name.lower())
-        and (not exclude_decoder or "decoder" not in name.lower())
+        if (
+            (not only_matrices or len(param.size()) == 2)
+            and not any(substr in name for substr in exclude)
+        )
     ]
 
 
