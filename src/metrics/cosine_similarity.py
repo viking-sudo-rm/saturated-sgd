@@ -1,8 +1,8 @@
-from typing import Callable, Iterable, Optional
+from typing import Callable, Dict, Iterable, Optional
 
 from overrides import overrides
 import torch
-from torch.nn import Parameter
+from torch.nn import Parameter, Module
 import numpy as np
 
 from allennlp.training.metrics.metric import Metric
@@ -18,37 +18,45 @@ def cos(vec1, vec2):
     return torch.sum(vec1 * vec2, dim=-1) / (norm1 * norm2)
 
 
-@Metric.register("saturation_cos_sim")
-class SaturationCosSim(Metric):
+@Metric.register("cosine_similarity")
+class CosineSimilarity(Metric):
 
-    def __init__(self, infinity: float = 1e3) -> None:
-        self.infinity = infinity
-        self.sum = 0.
-        self.num = 0.
+    """Measure cosine similarity, which will be applied between soft and hard logits."""
+
+    def __init__(self, key: str) -> None:
+        self.key = key
+        self.sum = 0.0
+        self.num = 0.0
 
     def __call__(
-        self, logits: torch.FloatTensor, model, logits_callback, mask=None,
+        self,
+        output_dict: Dict,
+        hard_output_dict: Dict,
+        mask=None,
     ):
-        # TODO: Unify the API for these saturation metrics.
-        with saturate(model, self.infinity):
-            hard_logits = logits_callback()
+        logits = output_dict[self.key]
+        hard_logits = hard_output_dict[self.key]
 
         if mask is not None:
             logits = logits * mask.unsqueeze(-1)
             hard_logits = hard_logits * mask.unsqueeze(-1)
-        
+
+        # Assume 0 is the batch dimension.
         sims = cos(logits.flatten(start_dim=1), hard_logits.flatten(start_dim=1))
         self.sum += torch.sum(sims)
         self.num += sims.size(0)
 
     @overrides
     def get_metric(self, reset: bool = False):
-        mean_sim = float(self.sum) / float(self.num)
+        if self.num == 0:
+            mean_sim = 0.
+        else:
+            mean_sim = float(self.sum) / float(self.num)
         if reset:
             self.reset()
         return mean_sim
 
     @overrides
     def reset(self):
-        self.sum = 0.
-        self.num = 0.
+        self.sum = 0.0
+        self.num = 0.0

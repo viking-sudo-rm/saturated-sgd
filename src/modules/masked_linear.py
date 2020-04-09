@@ -4,12 +4,22 @@ from torch.nn import Parameter, Module, Linear
 from torch.nn import functional as F
 
 
-def add_masks_to_model(model: Module):
-    for name, module in model.named_modules():
-        if isinstance(module, Linear):
-            model._modules[name] = MaskedLinear.convert(module)
-        elif module is not model:
-            add_masks_to_model(module)
+def add_masks_to_module(module: Module) -> None:
+    """Add masks to all the linear layers within this module."""
+    # Update object attributes.
+    for attr_name in dir(module):
+        submodule = getattr(module, attr_name)
+        if isinstance(submodule, Linear):
+            masked = MaskedLinear.convert(submodule)
+            setattr(module, attr_name, masked)
+        elif isinstance(submodule, Module) and submodule is not module:
+            add_masks_to_module(submodule)
+        
+    # Also update any submodules that might not be object attributes.
+    pairs = list(module.named_modules())
+    for name, submodule in pairs:
+        if isinstance(submodule, Linear):
+            module._modules[name] = MaskedLinear.convert(submodule)
 
 
 class MaskedLinear(Module):
@@ -18,12 +28,12 @@ class MaskedLinear(Module):
         super().__init__()
         self.weight = weight
         self.bias = bias
-        self.mask = Parameter(torch.ones_like(weight))
-    
+        self.mask = Parameter(torch.ones_like(weight), requires_grad=False)
+
     @classmethod
     def convert(cls, linear: Linear):
-        weight = linear.weight.clone()
-        bias = None if linear.bias is None else linear.bias.clone()
+        weight = Parameter(linear.weight.clone())
+        bias = None if linear.bias is None else Parameter(linear.bias.clone())
         return MaskedLinear(weight, bias)
 
     @overrides

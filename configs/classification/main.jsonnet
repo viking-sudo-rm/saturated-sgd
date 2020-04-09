@@ -14,7 +14,6 @@ local DATA_ROOT = "/net/nfs.corp/allennlp/willm/data";
 local DATASET_SIZE = 8544;
 
 
-// TODO: Use a bert encoder here.
 {
   "dataset_reader": {
     "type": "basic_sentiment",

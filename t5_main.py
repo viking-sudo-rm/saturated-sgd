@@ -98,6 +98,7 @@ def main():
             write_checkpoint_file(ckpt)
 
             estimator = model.estimator(vocabulary, init_checkpoint=ckpt)
+            import pdb; pdb.set_trace()
             all_all_norms[ckpt] = get_all_norms(estimator)
             continue
 

@@ -7,48 +7,48 @@ local N_LAYERS = 1;
 local BATCH_SIZE = 32; # 16, 32
 local OPTIMIZER = std.extVar("OPTIM");
 local LEARNING_RATE = 2e-5;  # 5e-5, 3e-5, 2e-5
+local DROPOUT = 0.3;
 
 # Path to the data on the file system.
-local DATA_ROOT = "/net/nfs.corp/allennlp/willm/data";
-local DATASET_SIZE = 8544;
+local PATH = "/net/nfs.corp/allennlp/suching/acl_2019_datasets/";
+local DATASET = std.extVar("DATASET");
 
 
 // TODO: Use a bert encoder here.
 {
   "dataset_reader": {
-    "type": "basic_sentiment",
-    "binary_sentiment": true,
+    "type": "text_classification_json_with_sampling",
+    "lazy": false,
+    // "max_sequence_length": 512,
+    // "sample": 500,
     "token_indexers": {
-      "tokens": {
-        "type": "single_id",
-      }
+      "tokens": "single_id",
     },
+    "tokenizer": "spacy",
   },
 
-  "train_data_path": DATA_ROOT + "/stanford/trees/train.txt",
-  "validation_data_path": DATA_ROOT + "/stanford/trees/dev.txt",
+  "train_data_path": PATH + DATASET + "/train.jsonl",
+  "validation_data_path": PATH + DATASET + "/dev.jsonl",
   
   "model": {
     "type": "sat_metrics_classifier",
 
     "parameter_metrics": {
-        "norm": "param_norm",
-        "num_saturated": {
-          "type": "num_saturated",
-          "weight_delta": 0.01,
-          "act_delta": 0.01,
-          "act_norm": 2,
-        },
-        "mask_change": {
-          "type": "mask_change",
-          "percent": 0.5,
-          "normalize": false,
-        },
-        "norm_mask_change": {
-          "type": "mask_change",
-          "percent": 0.5,
-          "normalize": true,
-        },
+      // "norm": "param_norm",
+    },
+
+    "activation_metrics": {
+      "sat_sim": {
+        "type": "cosine_similarity",
+        "key": "embedded_sequence",
+      },
+    },
+
+    "prune_metrics": {
+      "prune_sim": {
+        "type": "cosine_similarity",
+        "key": "embedded_sequence",
+      },
     },
 
     "text_field_embedder": {
@@ -82,6 +82,8 @@ local DATASET_SIZE = 8544;
       // "embedding_dim": 1000,
       "embedding_dim": HIDDEN_DIM,
     },
+
+    "dropout": DROPOUT,
 
   },
 

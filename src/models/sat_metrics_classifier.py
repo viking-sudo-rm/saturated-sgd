@@ -10,9 +10,8 @@ from allennlp.modules.seq2vec_encoders import Seq2VecEncoder
 from allennlp.modules.text_field_embedders import TextFieldEmbedder
 
 from src.utils.metrics import update_metrics
-from src.metrics.saturation_error import SaturationError
-from src.metrics.sat_cos_sim import SaturationCosSim
 from src.utils.saturate import saturate
+from src.utils.temp_prune import temp_prune
 
 
 @Model.register("sat_metrics_classifier")
@@ -30,15 +29,15 @@ class SatMetricsClassifier(BasicClassifier):
         seq2vec_encoder: Seq2VecEncoder,
         parameter_metrics: Dict[str, Metric] = {},
         activation_metrics: Dict[str, Metric] = {},
+        prune_metrics: Dict[str, Metric] = {},
+        prune_percent: float = 0.9,
         **kwargs,
     ):
         super().__init__(vocab, text_field_embedder, seq2vec_encoder, **kwargs)
         self.parameter_metrics = parameter_metrics
         self.activation_metrics = activation_metrics
-        self.saturation_error = SaturationError()
-        self.saturation_sim = SaturationCosSim()
-
-
+        self.prune_metrics = prune_metrics
+        self.prune_percent = 0.9
 
     def forward(  # type: ignore
         self, tokens, label, _saturated=False,
@@ -75,36 +74,32 @@ class SatMetricsClassifier(BasicClassifier):
             output_dict["loss"] = loss
             self._accuracy(logits, label)
 
-        with saturate(self, 1e3):
-            sat_output_dict = self.forward(tokens, None, _saturated=True)
-
-        logits_callback = lambda: ["logits"]
-        self.saturation_error(logits, self.parameters(), lambda: sat_output_dict["logits"])
-        self.saturation_sim(embedded_sequence, self, lambda: sat_output_dict["embedded_sequence"], mask)
+        if self.activation_metrics:
+            with saturate(self, infinity=1e3):
+                sat_output_dict = self.forward(tokens, None, _saturated=True)
+        
+        if self.prune_metrics and not self.training:
+            with temp_prune(self, percent=self.prune_percent):
+                prune_output_dict = self.forward(tokens, None, _saturated=True)
 
         for metric_fn in self.parameter_metrics.values():
             metric_fn(self.parameters())
 
+        # These metrics compare the network to its saturated version.
         for metric_fn in self.activation_metrics.values():
-            metric_fn(embedded_sequence, mask=mask.float())
+            metric_fn(output_dict, sat_output_dict, mask=mask)
+        
+        # These metrics compare the network to its pruned version.
+        if not self.training:  # Expensive, so only compute during eval time.
+            for metric_fn in self.prune_metrics.values():
+                metric_fn(output_dict, prune_output_dict, mask=mask)
 
         return output_dict
     
     def get_metrics(self, reset: bool = False):
         metrics = super().get_metrics(reset=reset)
-
-        # TODO: Refactor these saturation metrics under a common signature; probably just pass two dictionaries of results.
-        value = self.saturation_error.get_metric(reset=reset)
-        update_metrics(metrics, "sat_error", value)
-        value = self.saturation_sim.get_metric(reset=reset)
-        update_metrics(metrics, "sat_sim", value)
-
-        for name, metric in self.parameter_metrics.items():
-            value = metric.get_metric(reset=reset)
-            update_metrics(metrics, name, value)
-        
-        for name, metric in self.activation_metrics.items():
-            value = metric.get_metric(reset=reset)
-            update_metrics(metrics, name, value)
-
+        for metrics_dict in [self.parameter_metrics, self.activation_metrics, self.prune_metrics]:
+            for name, metric in metrics_dict.items():
+                value = metric.get_metric(reset=reset)
+                update_metrics(metrics, name, value)
         return metrics

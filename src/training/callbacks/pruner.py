@@ -1,11 +1,11 @@
 # This is commented out because CallbackTrainer was removed.
 
-# from torch.nn import Module
 from abc import abstractmethod
+from typing import Any, Dict
+from torch.nn import Module
 
-# from allennlp.training.callbacks.callback import Callback, handle_event
-# from allennlp.training.callbacks.events import Events
-# from allennlp.training.callback_trainer import CallbackTrainer
+from allennlp.training.trainer import EpochCallback
+
 
 class Prunable:
 
@@ -16,28 +16,18 @@ class Prunable:
         return NotImplemented
 
 
-# @Callback.register("pruner")
-# class PrunerCallback(Callback):
+@EpochCallback.register("pruner")
+class PrunerCallback(EpochCallback):
 
-#     """A callback function that initiates pruning at a specific epoch, or the end of training."""
+    """A callback function that initiates pruning at a specific epoch."""
 
-#     def __init__(self, epoch: int):
-#         self.epoch = epoch  # Set to -1 to do pruning after training has finished.
+    def __init__(self, epoch: int):
+        self.epoch = epoch
 
-#     @handle_event(Events.EPOCH_END)
-#     def on_epoch_end(self, trainer: CallbackTrainer):
-#         if trainer.epoch_number == self.epoch:
-#             self._prune_all_modules(trainer.model)
-
-#     @handle_event(Events.TRAINING_END)
-#     def on_training_end(self, trainer: CallbackTrainer):
-#         if trainer.epoch_number == -1:
-#             self._prune_all_modules(trainer.model)
-
-#     @classmethod
-#     def _prune_all_modules(cls, module: Module):
-#         if isinstance(module, Prunable):
-#             module.prune()
-
-#         for submodule in module.modules():
-#             cls._prune_all_modules(submodule)
+    def __call__(
+        self, trainer: "GradientDescentTrainer", metrics: Dict[str, Any], epoch: int
+    ) -> None:
+        if epoch == self.epoch:
+            for module in trainer.model.modules():
+                if isinstance(module, Prunable):
+                    module.prune()
