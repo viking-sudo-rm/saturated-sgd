@@ -13,6 +13,7 @@ from src.utils.metrics import update_metrics
 from src.utils.saturate import saturate
 from src.utils.temp_prune import temp_prune
 
+### OOOOOH I'M A GHOST SPOOKY
 
 @Model.register("sat_metrics_classifier")
 class SatMetricsClassifier(BasicClassifier):
@@ -31,6 +32,7 @@ class SatMetricsClassifier(BasicClassifier):
         activation_metrics: Dict[str, Metric] = {},
         prune_metrics: Dict[str, Metric] = {},
         prune_percent: float = 0.9,
+        infinity: float=1e3,
         **kwargs,
     ):
         super().__init__(vocab, text_field_embedder, seq2vec_encoder, **kwargs)
@@ -38,6 +40,7 @@ class SatMetricsClassifier(BasicClassifier):
         self.activation_metrics = activation_metrics
         self.prune_metrics = prune_metrics
         self.prune_percent = 0.9
+        self.infinity = infinity
 
     def forward(  # type: ignore
         self, tokens, label, _saturated=False,
@@ -59,11 +62,13 @@ class SatMetricsClassifier(BasicClassifier):
 
         logits = self._classification_layer(embedded_text)
         probs = torch.nn.functional.softmax(logits, dim=-1)
+        preds = probs.argmax(dim=-1)
 
         output_dict = {
             "embedded_sequence": embedded_sequence,
             "logits": logits,
             "probs": probs,
+            "preds": preds,
         }
 
         if _saturated:
@@ -75,15 +80,16 @@ class SatMetricsClassifier(BasicClassifier):
             self._accuracy(logits, label)
 
         if self.activation_metrics:
-            with saturate(self, infinity=1e3):
+            with saturate(self, infinity=self.infinity):
                 sat_output_dict = self.forward(tokens, None, _saturated=True)
         
         if self.prune_metrics and not self.training:
             with temp_prune(self, percent=self.prune_percent):
                 prune_output_dict = self.forward(tokens, None, _saturated=True)
 
+        parameters = list(self.parameters())
         for metric_fn in self.parameter_metrics.values():
-            metric_fn(self.parameters())
+            metric_fn(parameters)
 
         # These metrics compare the network to its saturated version.
         for metric_fn in self.activation_metrics.values():

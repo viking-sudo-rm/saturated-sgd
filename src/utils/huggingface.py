@@ -12,11 +12,15 @@ from math import sqrt
 EPS = np.finfo(np.float).eps
 
 
-def cos(vec1: torch.FloatTensor, vec2: torch.FloatTensor) -> torch.FloatTensor:
-    """Return the cosine similarity between two vectors."""
-    norm1 = torch.clamp(vec1.norm(dim=-1), min=EPS)
-    norm2 = torch.clamp(vec2.norm(dim=-1), min=EPS)
-    return torch.sum(vec1 * vec2, dim=-1) / (norm1 * norm2)
+def cos(
+    vec1: torch.FloatTensor, vec2: torch.FloatTensor, dim: int = -1
+) -> torch.FloatTensor:
+    """Return the cosine similarity between two vectors along `dim`.
+    
+    There was a bug in this that I fixed."""
+    return torch.sum(vec1 * vec2, dim=dim) / (
+        vec1.norm(dim=dim) * vec2.norm(dim=dim) + EPS
+    )
 
 
 def get_tokenizer_and_model(model_name: str):
@@ -72,14 +76,18 @@ def get_paired_mag_and_act_norms(
         return all_mag_norms, all_act_norms
 
 
-def get_activation_norms(parameters: List[Parameter]) -> List[float]:
+def get_activation_norms(
+    parameters: List[Parameter], normalize: bool = True
+) -> List[float]:
     """Return a list of all the activation norms."""
     with torch.no_grad():
         all_norms = []
         for param in parameters:
             if len(param.size()) != 2:
                 continue
-            norms = param.norm(dim=1, p=2) / sqrt(param.size(1))
+            norms = param.norm(dim=1, p=2)
+            if normalize:
+                norms /= sqrt(param.size(1))
             all_norms.extend(norm.item() for norm in norms)
         return all_norms
 
@@ -89,6 +97,11 @@ def get_weight_norms(parameters: List[Parameter]) -> np.ndarray:
     with torch.no_grad():
         norms = torch.cat([param.abs().flatten() for param in parameters])
         return norms.numpy()
+
+
+def get_embed_params(model) -> List:
+    """Get a list of parameters tied to the embedding layer."""
+    return [param for name, param in model.named_parameters() if "embed" in name]
 
 
 def get_params_by_layer(model) -> Dict:

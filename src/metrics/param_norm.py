@@ -27,7 +27,7 @@ class ParamNorm(Metric):
         self,
         params: Iterable[torch.FloatTensor],
     ):
-        params = list(params)
+        params = [param for param in params if param.requires_grad]
 
         # Mean norms.
         # TODO: Can compute these more efficiently with running average if memory becomes issue.

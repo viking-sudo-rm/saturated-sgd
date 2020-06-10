@@ -7,19 +7,10 @@ import numpy as np
 from allennlp.training.metrics.metric import Metric
 
 
-EPS = np.finfo(np.float).eps
+@Metric.register("accuracy")
+class Accuracy(Metric):
 
-
-def cos(vec1, vec2):
-    norm1 = torch.clamp(vec1.norm(dim=-1), min=EPS)
-    norm2 = torch.clamp(vec2.norm(dim=-1), min=EPS)
-    return torch.sum(vec1 * vec2, dim=-1) / (norm1 * norm2)
-
-
-@Metric.register("cosine_similarity")
-class CosineSimilarity(Metric):
-
-    """Measure cosine similarity, which will be applied between soft and hard logits."""
+    """Measure accuracy (percent of times the tensors are the same) between soft and hard logits."""
 
     def __init__(self, key: str) -> None:
         self.key = key
@@ -36,13 +27,15 @@ class CosineSimilarity(Metric):
         hard_logits = hard_output_dict[self.key]
 
         if mask is not None:
-            logits = logits * mask.unsqueeze(-1)
-            hard_logits = hard_logits * mask.unsqueeze(-1)
+            overlap = (logits == hard_logits) * mask.unsqueeze(-1)
+            numel = torch.sum(mask) * logits.size(-1)
+        else:
+            overlap = logits == hard_logits
+            numel = logits.numel()
 
         # Assume 0 is the batch dimension.
-        sims = cos(logits.flatten(start_dim=1), hard_logits.flatten(start_dim=1))
-        self.sum += torch.sum(sims)
-        self.num += sims.size(0)
+        self.sum += torch.sum(overlap)
+        self.num += numel
 
     @overrides
     def get_metric(self, reset: bool = False):

@@ -6,46 +6,34 @@ import torch
 from allennlp.training.metrics.metric import Metric
 
 
-@Metric.register("outward_projection")
-class OutwardProjection(Metric):
+@Metric.register("ortho")
+class Ortho(Metric):
 
     """Two measures of angular drift, using cosine distance."""
 
     def __init__(self) -> None:
-        self.cos_sim = torch.nn.CosineSimilarity(dim=0)
-        self.last_params = None
-        self.alpha = None
-        self.beta = None
+        self.value = 1.
 
     def __call__(
         self,
         params: List[torch.FloatTensor],
     ):
-        params = [torch.flatten(param) for param in params]
-        params = torch.cat(params)
+        params = [param for param in params if param.requires_grad]
 
-        if self.alpha is None:
-            self.alpha = 0.
-            self.beta = 0.
+        flat_params = [torch.flatten(param) for param in params]
+        flat_params = torch.cat(flat_params)
 
-        else:
-            step = params - self.last_params
-            self.alpha = torch.abs(self.cos_sim(params, self.last_params)).item()
-            self.beta = torch.abs(self.cos_sim(step, self.last_params)).item()
+        flat_grads = [torch.flatten(param.grad) for param in params]
+        flat_grads = torch.cat(flat_grads)
 
-        self.last_params = params.clone()
+        self.value = torch.dot(flat_params, flat_grads).item()
 
     def get_metric(self, reset: bool = False):
-        results = {
-            "alpha": self.alpha,
-            "beta": self.beta,
-        }
+        value = self.value
         if reset:
             self.reset()
-        return results
+        return value
 
     @overrides
     def reset(self):
-        self.last_params = None
-        self.alpha = None
-        self.beta = None
+        self.value = 1.
