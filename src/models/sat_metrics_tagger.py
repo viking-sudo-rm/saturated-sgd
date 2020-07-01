@@ -12,13 +12,13 @@ from allennlp.modules import Seq2SeqEncoder, TimeDistributed, TextFieldEmbedder
 from allennlp.models.model import Model
 from allennlp.nn import InitializerApplicator
 from allennlp.nn.util import get_text_field_mask, sequence_cross_entropy_with_logits
-from allennlp.training.metrics import CategoricalAccuracy, SpanBasedF1Measure
+from allennlp.training.metrics import Metric, CategoricalAccuracy, SpanBasedF1Measure
 
 from src.utils.saturate import saturate
 
 
-@Model.register("simple_tagger")
-class SimpleTagger(Model):
+@Model.register("sat_metrics_tagger")
+class SatMetricsTagger(Model):
 
     def __init__(
         self,

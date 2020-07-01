@@ -4,6 +4,7 @@ import torch
 
 from allennlp.training.optimizers import Optimizer, make_parameter_groups
 
+EPS = torch.finfo(torch.float64).eps
 
 class NormSGD(optim.SGD):
     def __init__(self, *args, **kwargs):
@@ -31,7 +32,7 @@ class NormSGD(optim.SGD):
                 if p.grad is None or not p.requires_grad:
                     continue
 
-                d_p = p.grad / p.grad.norm()
+                d_p = p.grad / (p.grad.norm() + EPS)
                 if weight_decay != 0:
                     d_p = d_p.add(p, alpha=weight_decay)
                 if momentum != 0:

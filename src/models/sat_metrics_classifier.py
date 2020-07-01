@@ -13,7 +13,6 @@ from src.utils.metrics import update_metrics
 from src.utils.saturate import saturate
 from src.utils.temp_prune import temp_prune
 
-### OOOOOH I'M A GHOST SPOOKY
 
 @Model.register("sat_metrics_classifier")
 class SatMetricsClassifier(BasicClassifier):

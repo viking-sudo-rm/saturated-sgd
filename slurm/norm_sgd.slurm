@@ -9,8 +9,11 @@
 
 source /home/willm/anaconda3/bin/activate allennlp
 cd /home/willm/code/saturated-sgd
-conf=configs/norm-sgd/pos_tagging.jsonnet
+conf=configs/norm-sgd/agree.jsonnet
 
-dir=/tmp/willm/norm-sgd-pos
+# dir=/tmp/willm/norm-sgd/agree
 
-allennlp train $conf -s $dir --include-package src
+lr=1.0  # Should be larger than for SGD.
+dir=/net/nfs2.corp/allennlp/willm/models/norm-sgd/agree/$lr
+
+LR=$lr allennlp train $conf -s $dir --include-package src

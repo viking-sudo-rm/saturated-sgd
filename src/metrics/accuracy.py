@@ -12,8 +12,10 @@ class Accuracy(Metric):
 
     """Measure accuracy (percent of times the tensors are the same) between soft and hard logits."""
 
-    def __init__(self, key: str) -> None:
+    def __init__(self, key: str, ignore_mask: bool = False) -> None:
         self.key = key
+        self.ignore_mask = ignore_mask
+
         self.sum = 0.0
         self.num = 0.0
 
@@ -26,7 +28,7 @@ class Accuracy(Metric):
         logits = output_dict[self.key]
         hard_logits = hard_output_dict[self.key]
 
-        if mask is not None:
+        if mask is not None and not self.ignore_mask:
             overlap = (logits == hard_logits) * mask.unsqueeze(-1)
             numel = torch.sum(mask) * logits.size(-1)
         else:
