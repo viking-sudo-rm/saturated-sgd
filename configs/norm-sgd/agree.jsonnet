@@ -5,9 +5,9 @@ local N_LAYERS = 1;
 
 // Optimization hyperparameters.
 local BATCH_SIZE = 32; # 16, 32
-local OPTIMIZER = "norm_sgd";
-// Learning rate should be higher for NormSGD than for standard SGD.
+local OPTIMIZER = std.extVar("OPTIMIZER");
 local LEARNING_RATE = std.parseJson(std.extVar("LR"));
+local MIN_STEP = std.parseJson(std.extVar("MIN_STEP"));
 local DROPOUT = 0.0;
 local PATIENCE = 50;
 
@@ -75,10 +75,17 @@ local PATIENCE = 50;
   },
 
   "trainer": {
-    "optimizer": {
-      "type": OPTIMIZER,
-      "lr": LEARNING_RATE,
-    },
+    "optimizer":
+    if OPTIMIZER == "floor_sgd"
+      then {
+        "type": OPTIMIZER,
+        "lr": LEARNING_RATE,
+        "min_step": MIN_STEP,
+      }
+      else {
+        "type": OPTIMIZER,
+        "lr": LEARNING_RATE,
+      },
     "num_epochs": 1000,
     "patience": PATIENCE,
     "cuda_device": 0,

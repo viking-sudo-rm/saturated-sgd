@@ -12,8 +12,11 @@ cd /home/willm/code/saturated-sgd
 conf=configs/norm-sgd/agree.jsonnet
 
 # dir=/tmp/willm/norm-sgd/agree
+# TODO: run this experiment with fixed random seed.
 
-lr=1.0  # Should be larger than for SGD.
-dir=/net/nfs2.corp/allennlp/willm/models/norm-sgd/agree/$lr
+optimizer=floor_sgd
+lr=1e-3
+min_step=1e-3
+dir=/net/nfs2.corp/allennlp/willm/models/norm-sgd/agree/$optimizer-lr=$lr-min=$min_step
 
-LR=$lr allennlp train $conf -s $dir --include-package src
+OPTIMIZER=$optimizer LR=$lr MIN_STEP=$min_step allennlp train $conf -s $dir --include-package src
