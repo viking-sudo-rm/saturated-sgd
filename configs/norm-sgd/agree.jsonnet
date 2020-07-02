@@ -1,4 +1,5 @@
 // Architecture hyperparameters.
+local RNN = "rnn";
 local EMBEDDING_DIM = 50;
 local HIDDEN_DIM = 50;
 local N_LAYERS = 1;
@@ -52,7 +53,7 @@ local PATIENCE = 50;
     },
 
     "seq2seq_encoder": {
-      "type": "lstm",
+      "type": RNN,
       "input_size": EMBEDDING_DIM,
       "hidden_size": HIDDEN_DIM,
       "num_layers": N_LAYERS,

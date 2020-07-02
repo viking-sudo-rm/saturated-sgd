@@ -16,7 +16,7 @@ conf=configs/norm-sgd/agree.jsonnet
 
 optimizer=floor_sgd
 lr=1e-3
-min_step=1e-3
+min_step=1e-6
 dir=/net/nfs2.corp/allennlp/willm/models/norm-sgd/agree/$optimizer-lr=$lr-min=$min_step
 
-OPTIMIZER=$optimizer LR=$lr MIN_STEP=$min_step allennlp train $conf -s $dir --include-package src
+RNN=$rnn OPTIMIZER=$optimizer LR=$lr MIN_STEP=$min_step allennlp train $conf -s $dir --include-package src
