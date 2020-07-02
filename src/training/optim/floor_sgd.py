@@ -37,8 +37,7 @@ class FloorSGD(optim.SGD):
                 # TODO: Apply across each row in each matrix??? Don't treat all matrices the same.
                 d_p = p.grad
                 norm = p.grad.norm(p=2, dim=-1, keepdim=True)
-                if norm < self.min_step:
-                    d_p = d_p * self.min_step / (norm + EPS)
+                d_p = torch.where(norm < self.min_step, d_p * self.min_step / (norm + EPS), d_p)
 
                 if weight_decay != 0:
                     d_p = d_p.add(p, alpha=weight_decay)

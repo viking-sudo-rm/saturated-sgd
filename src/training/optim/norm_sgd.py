@@ -32,7 +32,7 @@ class NormSGD(optim.SGD):
                 if p.grad is None or not p.requires_grad:
                     continue
 
-                d_p = p.grad / (p.grad.norm(dim=-1, keepdims=True) + EPS)
+                d_p = p.grad / (p.grad.norm(dim=-1, keepdim=True) + EPS)
 
                 if weight_decay != 0:
                     d_p = d_p.add(p, alpha=weight_decay)
