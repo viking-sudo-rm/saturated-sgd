@@ -36,7 +36,7 @@ class FloorSGD(optim.SGD):
                 # The conditional FloorSGD computation.
                 # TODO: Apply across each row in each matrix??? Don't treat all matrices the same.
                 d_p = p.grad
-                norm = p.grad.norm(p=2)
+                norm = p.grad.norm(p=2, dim=-1, keepdim=True)
                 if norm < self.min_step:
                     d_p = d_p * self.min_step / (norm + EPS)
 
